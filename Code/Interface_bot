@@ -1,0 +1,72 @@
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+import asyncio
+from bot_token import Token
+from Databases import cur, get_user_role
+
+bot = Bot(token = Token)
+dp = Dispatcher()
+
+
+
+@dp.message(Command('start'))
+async def start_handler(message: types.Message):
+    await message.answer('''Здравствуйте! Данный бот представляет лаболаторную базу данных оборудования.
+                         Для начала авторизуемся... ''')
+    role = get_user_role(message.from_user.id)
+    if role == "admin" or role == "user":
+        sqlforrole = "SELECT role FROM USERS WHERE ID = %s"
+        await cur.execute(sqlforrole, (message.from_user.id,))
+        current_user_role = await cur.fetchone()
+        await message.answer(f'Вы уже зарегестрированы как {current_user_role["role"]} Для контакта с ботом используйте слудующие команды: \n\n /broke - Вычитание инвертаря \n /add - Пополнение инвертаря \n /view - Вывести текущее количество инвертаря \n /view_requirement - Вывести все недостатки инвертаря лаболатории') #Две \n\ подряд сделаны для визуального форматирования
+        
+    else:
+        await bot.send_message('''Упс! Похоже, вы еще не зарегестрированы в боте! Давайте это исправим!
+              Запрос на вашу регистрацию отправлен админу!''')
+        # bot.send_message(cur.execute(FROM USERS SELECT ID WHERE role = "Admin"), f"""У вас новая заявка от пользователя {message.from_user.id}
+              
+        #       Доступные действия:
+        #       /reject - отклонить
+        #       /participant - сделать участником
+        #       /admin - сделать админом""")
+
+
+#Удалить
+@dp.message(Command('broke'))
+async def broke(message: types.Message):
+    await message.answer('Пожалуйста, введите данные в формате [имя], [кол-во едениц]')
+    broken_element = message.text.replace('/broke ', '').split(", ")
+    # broken_element = message.text.split(", ")
+    broke_update = """UPDATE equipment
+                SET item_current_quantity = item_current_quantity - %s
+                WHERE item_name = %s"""
+    await cur.execute(broke_update, (broken_element[1], broken_element[0]))
+    broken_show = "SELECT item_current_quantity from equipment WHERE item_name = %s"
+    await cur.execute(broken_show, (broken_element [1]))
+    broke_show = await cur.fetchone()
+    await message.answer(f'Готово! Текущее количество данного инверторя на складе - {broke_show["item_current_quantity"]}')
+
+
+#Добавить
+@dp.message(Command('add'))
+async def add(message: types.Message):
+    await message.answer('Пожалуйста, введите данные в формате [имя], [кол-во едениц]')
+    added_element = message.text.replace('/add ', '').split(", ")
+    add_update = """UPDATE equipment
+                SET item_current_quantity = item_current_quantity + %s
+                WHERE item_name = %s"""
+    await cur.execute(add_update, (added_element[1], added_element[0]))
+    added_show = "SELECT item_current_quantity from equipment WHERE item_name = %s"
+    await cur.execute(added_show, (added_element [1]))
+    add_show = await cur.fetchone()
+    await message.answer(f'Готово! Текущее количество данного инвертаря на складе - {add_show["item_current_quantity"]}')
+    
+
+async def main():
+    await dp.start_polling(bot)
+
+
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
