@@ -1,0 +1,23 @@
+import aiomysql
+
+async def create_db_pool():
+    pool = await aiomysql.create_pool(
+        host = '127.0.0.1',
+        port = 3306,
+        user = 'root',
+        password = 'start_db@44@',
+        db = 'labolatory_db',
+        autocommit = True
+    )
+    return pool
+
+async def get_user_role(pool, user_ID):
+    # 1. Получаем соединение из пула
+    async with pool.acquire() as conn:
+        # 2. Создаем курсор (DictCursor удобен для получения данных в виде словаря)
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            user_role = cur.execute("SELECT role FROM users WHERE user_ID =" , user_ID)
+    return user_role
+
+print("Отладка. База данных создана, или уже существует.") #База данных создана или уже существует!
+
